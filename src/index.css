@@ -65,109 +65,6 @@ nav {
 .label { font-size: 9px; letter-spacing: 0.38em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.8rem; }
 .section-title { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: clamp(32px, 4vw, 52px); color: var(--ink); margin-bottom: 1.2rem; }
 .section-body { font-size: 15px; line-height: 1.85; color: var(--muted); }
-.section-body + .section-body { margin-top: 1rem; }
-
-.trend-grid, .systems-grid, .mission-grid, .team-grid {
-  display: grid;
-  gap: 1rem;
-  margin-top: 2rem;
-}
-.trend-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.systems-grid, .team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.mission-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-
-.trend-card, .systems-card, .mission-grid article, .team-card {
-  background: var(--white);
-  border: 1px solid #e5e8eb;
-  padding: 1.3rem;
-}
-.trend-number { font-size: 11px; letter-spacing: 0.2em; color: var(--steel-dark); margin-bottom: 0.8rem; }
-.trend-card h3, .systems-card h3, .mission-grid h3, .team-card h3 { font-family: 'Cormorant Garamond', serif; font-size: 27px; margin-bottom: 0.7rem; color: var(--ink-mid); }
-.trend-card p, .systems-card p, .mission-grid p, .team-card p { font-size: 13.5px; line-height: 1.75; color: var(--muted); }
-.chart-labels { margin: 0.9rem 0; border-left: 2px solid #d6e0e6; padding-left: 0.8rem; }
-.meta { font-size: 11px !important; color: #708997 !important; }
-
-.editorial-block { margin-top: 2rem; }
-blockquote { margin: 1.2rem 0; border-left: 2px solid var(--steel-mid); padding-left: 1rem; font-family: 'Cormorant Garamond', serif; font-size: 24px; color: var(--ink-mid); line-height: 1.4; }
-
-.ecosystem-circle {
-  margin: 1.6rem 0;
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 0.5rem;
-  align-items: center;
-}
-.ecosystem-circle span {
-  border: 1px solid #d8e0e5;
-  background: var(--white);
-  padding: 0.65rem 0.7rem;
-  font-size: 11px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  text-align: center;
-}
-.ecosystem-circle .hub { grid-column: span 2; font-weight: 500; }
-
-.tag-row { display: flex; flex-wrap: wrap; gap: 0.55rem; margin-top: 1.4rem; }
-.tag-row span {
-  border: 1px solid #d8e0e5;
-  padding: 0.4rem 0.6rem;
-  font-size: 10px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  background: var(--white);
-}
-
-.comparison {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
-}
-.comparison h4 { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-mid); margin-bottom: 0.4rem; }
-
-.initials { font-size: 12px !important; letter-spacing: 0.18em; text-transform: uppercase; color: var(--steel-dark) !important; }
-.role { font-size: 11px !important; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.7rem; }
-.advisors { margin-top: 2rem; }
-
-#ecosystem { background: var(--cream-dark, #eae5dd); }
-.ecosystem-inner { display: grid; grid-template-columns: 1fr 1fr; gap: 5rem; align-items: center; }
-.eco-text .label { color: var(--muted); }
-.eco-text h2 { font-family: 'Cormorant Garamond', serif; font-weight: 400; font-size: clamp(36px, 4.5vw, 58px); color: var(--ink); line-height: 1.1; margin-bottom: 1.4rem; letter-spacing: 0.02em; }
-.eco-text p { font-size: 15px; font-weight: 300; line-height: 1.85; color: var(--muted); margin-bottom: 1.2rem; }
-.eco-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1.5rem; }
-.eco-tag { font-size: 10px; font-weight: 400; letter-spacing: 0.16em; text-transform: uppercase; padding: 6px 14px; background: rgba(106,172,184,0.12); border: 0.5px solid rgba(106,172,184,0.3); color: var(--accent-dark); }
-.eco-visual { display: flex; align-items: center; justify-content: center; }
-
-#why-estra { background: var(--cream); }
-.why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5px; background: var(--cream-dark); margin-top: 3.5rem; }
-.why-block { background: var(--white); padding: 2.5rem 2.2rem; position: relative; overflow: hidden; }
-.why-block::before { content: ''; position: absolute; top: 0; left: 0; width: 3px; height: 0; background: var(--accent); transition: height 0.4s ease; }
-.why-block:hover::before { height: 100%; }
-.why-block-num { font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 300; color: var(--steel-light); line-height: 1; margin-bottom: 1rem; }
-.why-block h3 { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; color: var(--ink); margin-bottom: 0.7rem; letter-spacing: 0.02em; line-height: 1.25; }
-.why-block p { font-size: 13.5px; font-weight: 300; line-height: 1.8; color: var(--muted); }
-.why-block ul { margin-top: 0.8rem; padding-left: 0; list-style: none; }
-.why-block ul li { font-size: 13px; font-weight: 300; color: var(--muted); padding: 3px 0; display: flex; align-items: center; gap: 8px; }
-.why-block ul li::before { content: '→'; color: var(--accent); font-size: 12px; flex-shrink: 0; }
-.mission-banner { background: var(--ink-mid, #2e4050); padding: 4rem 3rem; text-align: center; margin-top: 1.5px; }
-.mission-banner p { font-family: 'Cormorant Garamond', serif; font-size: clamp(20px, 3vw, 30px); font-weight: 300; font-style: italic; color: rgba(255,255,255,0.88); line-height: 1.55; max-width: 720px; margin: 0 auto; letter-spacing: 0.02em; }
-
-#team { background: var(--cream-dark, #eae5dd); }
-.team-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.5px; background: var(--cream); margin-top: 3rem; }
-.team-card { background: var(--white); padding: 2.2rem 2rem; transition: background 0.2s; }
-.team-card:hover { background: #faf8f5; }
-.team-avatar { width: 52px; height: 52px; border-radius: 50%; margin-bottom: 1.2rem; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 500; }
-.team-role { font-size: 9px; font-weight: 500; letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent-dark); margin-bottom: 0.4rem; }
-.team-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 500; color: var(--ink); letter-spacing: 0.02em; line-height: 1.2; margin-bottom: 0.5rem; }
-.team-desc { font-size: 13px; font-weight: 300; line-height: 1.75; color: var(--muted); }
-.advisor-section { margin-top: 4rem; }
-.advisor-label { font-size: 9px; font-weight: 500; letter-spacing: 0.3em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 0.5px solid var(--cream); }
-.advisor-card { display: flex; align-items: flex-start; gap: 1.2rem; padding: 1.5rem 2rem; background: var(--white); margin-bottom: 1.5px; transition: background 0.2s; }
-.advisor-card:hover { background: #faf8f5; }
-.advisor-avatar { width: 44px; height: 44px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-family: 'Cormorant Garamond', serif; font-size: 16px; font-weight: 500; }
-.advisor-info h4 { font-family: 'Cormorant Garamond', serif; font-size: 18px; font-weight: 500; color: var(--ink); margin-bottom: 0.2rem; }
-.advisor-info p { font-size: 12.5px; font-weight: 300; color: var(--muted); line-height: 1.6; }
 
 .public-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5px; background: var(--cream-dark); margin-top: 2rem; }
 .public-card { background: var(--white); padding: 1.6rem; min-height: 260px; }
@@ -187,11 +84,6 @@ footer { background: var(--ink); padding: 3rem; display: flex; justify-content: 
 .auth-modal .link-btn { background: transparent; color: var(--accent-dark); text-decoration: underline; border: none; padding: 0; text-align: left; }
 
 @media (max-width: 900px) {
-  .trend-grid, .systems-grid, .mission-grid, .team-grid, .comparison { grid-template-columns: 1fr; }
-  .ecosystem-inner { grid-template-columns: 1fr; gap: 2rem; }
-  .why-grid { grid-template-columns: 1fr; }
-  .ecosystem-circle { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .ecosystem-circle .hub { grid-column: span 2; }
   .public-grid { grid-template-columns: 1fr; }
   .nav-links { display: none; }
   nav { padding: 0 1.5rem; }
