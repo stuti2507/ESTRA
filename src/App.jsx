@@ -7,9 +7,8 @@ import { hasSupabaseConfig, supabase } from './supabaseClient';
 
 export default function App() {
   const [session, setSession] = useState(null);
-  const [userEmail, setUserEmail] = useState('');
   const [authOpen, setAuthOpen] = useState(false);
-  const [authMode, setAuthMode] = useState('signup');
+  const [authMode, setAuthMode] = useState('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [activeSection, setActiveSection] = useState('flagship');
@@ -55,16 +54,10 @@ export default function App() {
       return;
     }
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUserEmail(data.session?.user?.email || '');
-    });
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const {
       data: { subscription: authSub },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setUserEmail(nextSession?.user?.email || '');
-    });
+    } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
 
     fetchAll();
     const channel = supabase
@@ -84,33 +77,15 @@ export default function App() {
     event.preventDefault();
     if (!supabase) return;
 
-    const email = authEmail.trim().toLowerCase();
-    const password = authPassword;
-
     if (authMode === 'signup') {
-      const { error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) {
-        setStatusMessage(signUpError.message);
-        return;
-      }
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setStatusMessage(
-          `Account created, but auto-login failed: ${signInError.message}. Try logging in manually.`,
-        );
-        setAuthMode('login');
-        return;
-      }
-
-      setStatusMessage('Signup and login successful.');
-      setAuthOpen(false);
-      setWorkspaceOpen(true);
+      const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
+      setStatusMessage(error ? error.message : 'Signup successful. You can now log in.');
+      if (!error) setAuthMode('login');
       return;
     }
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setStatusMessage(error ? `Login failed: ${error.message}` : 'Logged in successfully.');
+    const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
+    setStatusMessage(error ? error.message : 'Logged in successfully.');
     if (!error) {
       setAuthOpen(false);
       setWorkspaceOpen(true);
@@ -122,7 +97,7 @@ export default function App() {
     const payload = {
       section_name: record.section_name,
       content: record.content || '',
-      updated_by: userEmail || session?.user?.email || '',
+      updated_by: session?.user?.email || '',
       last_updated: new Date().toISOString(),
       is_public: Boolean(record.is_public),
       is_posted: Boolean(record.is_posted),
@@ -242,7 +217,7 @@ export default function App() {
         <div className="nav-links">
           <a href="#why-now">Why Now</a><a href="#ecosystem">Ecosystem</a><a href="#why-estra">Why ESTRA</a><a href="#team">Team</a>
         </div>
-        <button className="nav-cta" onClick={() => { setAuthOpen(true); setAuthMode('signup'); }}>Apply to Participate</button>
+        <button className="nav-cta" onClick={() => { setAuthOpen(true); setAuthMode(session ? 'login' : 'signup'); }}>Apply to Participate</button>
       </nav>
 
       <section className="hero" id="hero">
@@ -303,7 +278,7 @@ export default function App() {
         <div className="auth-overlay" onClick={() => setAuthOpen(false)}>
           <form className="auth-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAuth}>
             <h3>{authMode === 'signup' ? 'Create your researcher account' : 'Login to ESTRA'}</h3>
-            <p>{hasSupabaseConfig ? 'Use email + password to access the editable collaborative modules.' : 'Configure Supabase first to enable authentication.'}</p>
+            <p>{hasSupabaseConfig ? 'Use your credentials to access the editable collaborative modules.' : 'Configure Supabase first to enable authentication.'}</p>
             <input type="email" placeholder="Email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
             <input type="password" placeholder="Password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
             <button type="submit" disabled={!hasSupabaseConfig}>{authMode === 'signup' ? 'Sign Up' : 'Login'}</button>

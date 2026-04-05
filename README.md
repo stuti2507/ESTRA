@@ -77,7 +77,7 @@ alter table insights_signals add column if not exists is_posted boolean default 
 
 In Supabase:
 
-- Authentication → Providers → **Email** enabled (email + password auth, not magic link).
+- Authentication → Providers → **Email** enabled.
 - For easiest local testing, disable email confirmation (or confirm accounts manually).
 
 ## 4) Realtime + access
