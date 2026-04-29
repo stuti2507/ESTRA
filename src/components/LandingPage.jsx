@@ -15,20 +15,13 @@ const starterInsights = [
   { id: 2, title: 'Primary-Care Prevention Signals in Central Europe', body: 'Pilot regions integrating digital risk triage with GP networks report earlier interventions and measurable adherence gains.', author: 'ESTRA Member', date: '2026-04-25', tags: { discipline: 'Healthcare', region: 'Europe', format: 'Data Note' }, comments: [] },
 ];
 
-const starterMembers = [
-  { id: 1, name: 'Georgia Bailey', role: 'Founder', institution: 'ESTRA', linkedin: '#', expertise: ['Policy', 'Geopolitics'], joined: '2025-02-15', insightsCount: 3 },
-  { id: 2, name: 'Stuti Iyer', role: 'Technical Lead', institution: 'ESTRA', linkedin: '#', expertise: ['Technology', 'Healthcare'], joined: '2025-03-02', insightsCount: 2 },
-];
-
 export default function LandingPage({ session, userRole, statusMessage, onOpenAuth, onOpenWorkspace }) {
   const [filter, setFilter] = useState({ discipline: 'All', region: 'All', format: 'All' });
   const [followedTags, setFollowedTags] = useState([]);
-  const [followedMembers, setFollowedMembers] = useState([]);
   const [savedInsightIds, setSavedInsightIds] = useState([]);
   const [insights, setInsights] = useState(starterInsights);
   const [commentDrafts, setCommentDrafts] = useState({});
   const [applications, setApplications] = useState([]);
-  const [notificationMessage, setNotificationMessage] = useState('Notifications: off');
 
   const isAdmin = userRole === 'admin';
   const isApprovedMember = userRole === 'member' || isAdmin;
@@ -62,16 +55,16 @@ export default function LandingPage({ session, userRole, statusMessage, onOpenAu
   return (
     <>
       <nav>
-        <a href="#hero" className="nav-logo"><span className="nav-logo-name steel-logo">ESTRA</span><span className="nav-logo-sub">Evidence Synthesis Translation Real-World Action</span></a>
-        <div className="nav-links"><a href="#why-now">Structural Context</a><a href="#ecosystem">System Diagram</a><a href="#insights">Insights</a><a href="#profiles">Profiles</a></div>
+        <a href="#hero" className="nav-logo"><span className="nav-logo-name">ESTRA</span><span className="nav-logo-sub">Evidence Synthesis Translation Real-World Action</span></a>
+        <div className="nav-links"><a href="#why-now">Structural Context</a><a href="#ecosystem">System Diagram</a><a href="#insights">Insights</a><a href="#team">Team</a></div>
         <button className="nav-cta" onClick={() => window.location.assign('#apply')}>Apply to Join</button>
       </nav>
 
       <section className="hero" id="hero">
         <div className="hero-inner">
-          <h1 className="hero-title steel-logo">ESTRA</h1>
+          <h1 className="hero-title">ESTRA</h1>
           <p className="hero-sub">Evidence. Synthesis. Translation. Real-World Action.</p>
-          <p className="hero-desc">Global Longevity Intelligence.<br />Verified Science. Unified Experts. Policy in Motion.</p>
+          <p className="hero-desc">Global Longevity Intelligence. Verified Science. Unified Experts. Policy in Motion.</p>
           <div className="hero-actions"><button className="btn-solid" onClick={() => window.location.assign('#apply')}>Apply to Join</button><button className="btn-ghost" onClick={onOpenAuth}>{session ? 'Account' : 'Sign up / Login'}</button>{session && <button className="btn-ghost" onClick={onOpenWorkspace}>Open Workspace</button>}</div>
         </div>
       </section>
@@ -86,8 +79,6 @@ export default function LandingPage({ session, userRole, statusMessage, onOpenAu
           <h2 className="section-title">Structured Publishing</h2>
           <div className="filters"><select value={filter.discipline} onChange={(e) => setFilter((p) => ({ ...p, discipline: e.target.value }))}><option>All</option>{disciplineTags.map((x) => <option key={x}>{x}</option>)}</select><select value={filter.region} onChange={(e) => setFilter((p) => ({ ...p, region: e.target.value }))}><option>All</option>{regionTags.map((x) => <option key={x}>{x}</option>)}</select><select value={filter.format} onChange={(e) => setFilter((p) => ({ ...p, format: e.target.value }))}><option>All</option>{formatTags.map((x) => <option key={x}>{x}</option>)}</select></div>
           <div className="tag-row">{[...disciplineTags, ...regionTags, ...formatTags].map((tag) => <button key={tag} className={`eco-tag ${followedTags.includes(tag) ? 'active-tag' : ''}`} onClick={() => setFollowedTags((prev) => prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag])}>Follow {tag}</button>)}</div>
-          <button className="btn-ghost" onClick={() => setNotificationMessage('Notifications: mock subscribed to followed tags and members')}>Enable Notifications (Mock)</button>
-          <p className="section-body" style={{ marginTop: 10 }}>{notificationMessage}</p>
 
           {isApprovedMember && (
             <form className="publish-form" onSubmit={publishInsight}>
@@ -112,14 +103,12 @@ export default function LandingPage({ session, userRole, statusMessage, onOpenAu
         </div>
       </section>
 
-      <section className="section" id="profiles"><div className="section-inner"><div className="label">Approved Members</div><h2 className="section-title">Member Profiles</h2><div className="team-grid">{starterMembers.map((m) => <div key={m.id} className="team-card"><div className="team-avatar">{m.name.split(' ').map((x) => x[0]).join('').slice(0, 2)}</div><div className="team-role">{m.role}</div><div className="team-name">{m.name}</div><p className="team-desc">{m.institution} · Joined {m.joined}<br />Expertise: {m.expertise.join(', ')}<br />Insights published: {m.insightsCount}</p><button className="btn-ghost" onClick={() => setFollowedMembers((prev) => prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id])}>{followedMembers.includes(m.id) ? 'Following' : 'Follow Member'}</button></div>)}</div></div></section>
-
       <TeamSection />
 
       <section className="section" id="apply"><div className="section-inner"><h2 className="section-title">Apply to Join</h2><ApplyForm onStatus={() => {}} onLocalSubmit={(payload) => setApplications((prev) => [{ id: Date.now(), ...payload }, ...prev])} /></div></section>
       {isAdmin && <AdminPanel applications={applications} onApprove={(id, status) => setApplications((prev) => prev.map((x) => x.id === id ? { ...x, status } : x))} />}
 
-      <footer><div className="footer-logo steel-logo">ESTRA</div><div className="footer-copy">{statusMessage}</div><button className="btn-ghost" onClick={onOpenAuth}>{session ? 'Switch account' : 'Login'}</button></footer>
+      <footer><div className="footer-logo">ESTRA</div><div className="footer-copy">{statusMessage}</div><button className="btn-ghost" onClick={onOpenAuth}>{session ? 'Switch account' : 'Login'}</button></footer>
     </>
   );
 }
