@@ -487,6 +487,43 @@ export default function App() {
         </div>
       </section>
 
+      <TeamSection />
+
+      <section className="section" id="apply">
+        <div className="section-inner">
+          <h2 className="section-title">Apply to Join</h2>
+          <form className="publish-form" onSubmit={handleApply}>
+            <input placeholder="Full Name" value={applicationForm.full_name} onChange={(e) => setApplicationForm((p) => ({ ...p, full_name: e.target.value }))} required />
+            <input placeholder="Email" type="email" value={applicationForm.email} onChange={(e) => setApplicationForm((p) => ({ ...p, email: e.target.value }))} required />
+            <input placeholder="Role" value={applicationForm.role} onChange={(e) => setApplicationForm((p) => ({ ...p, role: e.target.value }))} required />
+            <input placeholder="Institution" value={applicationForm.institution} onChange={(e) => setApplicationForm((p) => ({ ...p, institution: e.target.value }))} required />
+            <input placeholder="Area of Expertise" value={applicationForm.expertise} onChange={(e) => setApplicationForm((p) => ({ ...p, expertise: e.target.value }))} required />
+            <input placeholder="LinkedIn URL" value={applicationForm.linkedin_url} onChange={(e) => setApplicationForm((p) => ({ ...p, linkedin_url: e.target.value }))} required />
+            <textarea rows={3} placeholder="Statement of Interest" value={applicationForm.statement} onChange={(e) => setApplicationForm((p) => ({ ...p, statement: e.target.value }))} required />
+            <input placeholder="Optional CV upload URL" value={applicationForm.cv_url} onChange={(e) => setApplicationForm((p) => ({ ...p, cv_url: e.target.value }))} />
+            <button className="btn-solid" type="submit">Submit Application</button>
+          </form>
+        </div>
+      </section>
+
+      {isAdmin && (
+        <section className="section">
+          <div className="section-inner">
+            <div className="label">Admin Dashboard</div>
+            <h2 className="section-title">Moderation &amp; Approval</h2>
+            {applications.map((app) => (
+              <div key={app.id} className="advisor-card">
+                <div><strong>{app.full_name}</strong> ({app.email}) — {app.status}</div>
+                <div style={{ marginLeft: 'auto' }}>
+                  <button className="btn-solid" onClick={() => approveApplication(app.id, 'approved')}>Approve</button>
+                  <button className="btn-ghost" onClick={() => approveApplication(app.id, 'rejected')}>Reject</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       <footer>
         <div className="footer-logo">ESTRA</div>
         <div className="footer-links"><a href="#why-now">Why Now</a><a href="#ecosystem">Ecosystem</a><a href="#why-estra">Why ESTRA</a><a href="#team">Team</a></div>
@@ -496,15 +533,30 @@ export default function App() {
       {authOpen && (
         <div className="auth-overlay" onClick={() => setAuthOpen(false)}>
           <form className="auth-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAuth}>
-            <h3>{authMode === 'signup' ? 'Create your researcher account' : 'Login to ESTRA'}</h3>
-            <p>{hasSupabaseConfig ? 'Use your credentials to access the editable collaborative modules.' : 'Configure Supabase first to enable authentication.'}</p>
-            <input type="email" placeholder="Email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
-            <input type="password" placeholder="Password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
-            <button type="submit" disabled={!hasSupabaseConfig}>{authMode === 'signup' ? 'Sign Up' : 'Login'}</button>
-            <button type="button" className="link-btn" onClick={() => setAuthMode((prev) => (prev === 'signup' ? 'login' : 'signup'))}>
+            <h3>{authMode === 'signup' ? 'Create account' : 'Login'}</h3>
+            <input type="email" placeholder="Email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required />
+            <input type="password" placeholder="Password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
+            <button type="submit">{authMode === 'signup' ? 'Sign Up' : 'Login'}</button>
+            <button type="button" className="link-btn" onClick={() => setAuthMode((p) => (p === 'signup' ? 'login' : 'signup'))}>
               {authMode === 'signup' ? 'Already have an account? Login' : 'Need an account? Sign up'}
             </button>
-            {session && <button type="button" className="link-btn" onClick={() => { setAuthOpen(false); setWorkspaceOpen(true); }}>Already logged in? Enter workspace</button>}
+            {pendingConfirmationEmail && (
+              <button
+                type="button"
+                className="link-btn"
+                onClick={async () => {
+                  if (!supabase) return;
+                  const { error } = await supabase.auth.resend({
+                    type: 'signup',
+                    email: pendingConfirmationEmail,
+                    options: { emailRedirectTo: window.location.origin },
+                  });
+                  setStatusMessage(error ? error.message : `Confirmation email re-sent to ${pendingConfirmationEmail}.`);
+                }}
+              >
+                Resend confirmation email
+              </button>
+            )}
             <small>{statusMessage}</small>
           </form>
         </div>
