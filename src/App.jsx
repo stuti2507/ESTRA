@@ -1,295 +1,246 @@
 import { useEffect, useMemo, useState } from 'react';
-import Sidebar from './components/Sidebar';
-import FlagshipProjectPanel from './components/FlagshipProjectPanel';
-import GeopoliticsTrackerPanel from './components/GeopoliticsTrackerPanel';
-import InsightsSignalsPanel from './components/InsightsSignalsPanel';
 import { hasSupabaseConfig, supabase } from './supabaseClient';
+import WhyNowSection from './components/sections/WhyNowSection';
+import EcosystemSection from './components/sections/EcosystemSection';
+import WhyEstraSection from './components/sections/WhyEstraSection';
+import TeamSection from './components/sections/TeamSection';
+
+const disciplineTags = ['Economics', 'Healthcare', 'Policy', 'Biology', 'Psychology', 'Anthropology', 'Nutrition', 'Geopolitics', 'Technology', 'Environment'];
+const regionTags = ['Europe', 'Asia', 'Americas', 'Global'];
+const formatTags = ['Brief', 'Data Note', 'Commentary', 'Research Summary'];
+
+const starterInsights = [
+  {
+    id: 1,
+    title: 'Longevity Financing Models for Ageing Economies',
+    body: 'Comparative policy scan across OECD systems shows prevention-first financing produces stronger labor participation and lower late-life acute care costs.',
+    author: 'ESTRA Editorial',
+    date: '2026-04-21',
+    tags: { discipline: 'Economics', region: 'Global', format: 'Research Summary' },
+    comments: [{ id: 1, author: 'Member A', text: 'Useful framing for fiscal ministries.', date: '2026-04-22' }],
+  },
+  {
+    id: 2,
+    title: 'Primary-Care Prevention Signals in Central Europe',
+    body: 'Pilot regions integrating digital risk triage with GP networks report earlier interventions and measurable adherence gains.',
+    author: 'ESTRA Member',
+    date: '2026-04-25',
+    tags: { discipline: 'Healthcare', region: 'Europe', format: 'Data Note' },
+    comments: [],
+  },
+];
 
 export default function App() {
   const [session, setSession] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('Ready.');
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
-  const [activeSection, setActiveSection] = useState('flagship');
-  const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const [pendingConfirmationEmail, setPendingConfirmationEmail] = useState('');
 
-  const [flagshipProject, setFlagshipProject] = useState([]);
-  const [geopoliticsTracker, setGeopoliticsTracker] = useState([]);
-  const [insightsSignals, setInsightsSignals] = useState([]);
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [statusMessage, setStatusMessage] = useState('Ready.');
+  const [activeSection, setActiveSection] = useState('home');
+  const [filter, setFilter] = useState({ discipline: 'All', region: 'All', format: 'All' });
+  const [followedTags, setFollowedTags] = useState([]);
+  const [savedInsightIds, setSavedInsightIds] = useState([]);
+  const [insights, setInsights] = useState(starterInsights);
+  const [commentDrafts, setCommentDrafts] = useState({});
 
-  const ensureFlagshipSections = (rows = []) => {
-    const names = ['Overview', 'Cost', 'Prevention', 'Implementation'];
-    return names.map(
-      (name) =>
-        rows.find((row) => row.section_name === name) || {
-          section_name: name,
-          content: '',
-          updated_by: '',
-          last_updated: null,
-          is_public: false,
-          is_posted: false,
-        },
-    );
-  };
+  const [applicationForm, setApplicationForm] = useState({
+    full_name: '', email: '', role: '', institution: '', expertise: '', linkedin_url: '', statement: '', cv_url: '',
+  });
 
-  const fetchAll = async () => {
-    if (!supabase) return;
-    const [flagshipRes, geoRes, insightsRes] = await Promise.all([
-      supabase.from('flagship_project').select('*').order('id', { ascending: true }),
-      supabase.from('geopolitics_tracker').select('*').order('id', { ascending: true }),
-      supabase.from('insights_signals').select('*').order('date', { ascending: false }),
-    ]);
+  const [applications, setApplications] = useState([]);
 
-    if (!flagshipRes.error) setFlagshipProject(ensureFlagshipSections(flagshipRes.data || []));
-    if (!geoRes.error) setGeopoliticsTracker(geoRes.data || []);
-    if (!insightsRes.error) setInsightsSignals(insightsRes.data || []);
-  };
+  const userRole = session?.user?.user_metadata?.role || 'public';
+  const isAdmin = userRole === 'admin';
+  const isApprovedMember = userRole === 'member' || isAdmin;
 
   useEffect(() => {
     if (!supabase) {
-      setStatusMessage('Supabase is not configured. Add env keys to connect shared data.');
+      setStatusMessage('Supabase is not configured. Running in demo mode.');
       return;
     }
-
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const {
-      data: { subscription: authSub },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => setSession(nextSession));
-
-    fetchAll();
-    const channel = supabase
-      .channel('estra-live-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'flagship_project' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'geopolitics_tracker' }, fetchAll)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'insights_signals' }, fetchAll)
-      .subscribe();
-
-    return () => {
-      authSub.unsubscribe();
-      supabase.removeChannel(channel);
-    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, nextSession) => setSession(nextSession));
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleAuth = async (event) => {
     event.preventDefault();
     if (!supabase) return;
-
     if (authMode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
-      setStatusMessage(error ? error.message : 'Signup successful. You can now log in.');
-      if (!error) setAuthMode('login');
+      const { data, error } = await supabase.auth.signUp({ email: authEmail, password: authPassword, options: { emailRedirectTo: window.location.origin } });
+      if (error) return setStatusMessage(error.message);
+      if (data?.session) {
+        setStatusMessage('Signup successful. You are now logged in.');
+        setAuthOpen(false);
+        return;
+      }
+      setPendingConfirmationEmail(authEmail);
+      setStatusMessage('Account created. Confirm your email before login.');
       return;
     }
-
     const { error } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
-    setStatusMessage(error ? error.message : 'Logged in successfully.');
-    if (!error) {
-      setAuthOpen(false);
-      setWorkspaceOpen(true);
+    if (error) {
+      setStatusMessage(error.message === 'Invalid login credentials' ? 'Invalid credentials or unconfirmed email. Confirm then try again.' : error.message);
+      return;
     }
+    setPendingConfirmationEmail('');
+    setStatusMessage('Logged in successfully.');
+    setAuthOpen(false);
   };
 
-  const saveFlagshipSection = async (record) => {
-    if (!supabase) return;
-    const payload = {
-      section_name: record.section_name,
-      content: record.content || '',
-      updated_by: session?.user?.email || '',
-      last_updated: new Date().toISOString(),
-      is_public: Boolean(record.is_public),
-      is_posted: Boolean(record.is_posted),
-    };
-    const query = record.id
-      ? supabase.from('flagship_project').update(payload).eq('id', record.id)
-      : supabase.from('flagship_project').insert(payload);
-    const { error } = await query;
-    setStatusMessage(error ? error.message : `${record.section_name} saved.`);
-    if (!error) fetchAll();
-  };
+  const filteredInsights = useMemo(() => insights.filter((item) =>
+    (filter.discipline === 'All' || item.tags.discipline === filter.discipline) &&
+    (filter.region === 'All' || item.tags.region === filter.region) &&
+    (filter.format === 'All' || item.tags.format === filter.format)), [insights, filter]);
 
-  const saveTrackerRow = async (row) => {
-    if (!supabase) return;
-    const payload = {
-      country: row.country || '',
-      policy: row.policy || '',
-      status: row.status || 'Planned',
-      impact: row.impact || '',
-      source: row.source || '',
-      notes: row.notes || '',
-      last_updated: new Date().toISOString(),
-      is_public: Boolean(row.is_public),
-      is_posted: Boolean(row.is_posted),
-    };
-    const query = row.id
-      ? supabase.from('geopolitics_tracker').update(payload).eq('id', row.id)
-      : supabase.from('geopolitics_tracker').insert(payload);
-    const { error } = await query;
-    setStatusMessage(error ? error.message : 'Tracker row saved.');
-    if (!error) fetchAll();
-  };
-
-  const addTrackerRow = async (row) => setGeopoliticsTracker((prev) => [{ ...row, id: Date.now() }, ...prev]);
-
-  const saveInsight = async (item) => {
-    if (!supabase) return;
-    const payload = {
-      title: item.title || '',
-      author: item.author || '',
-      type: item.type || 'Insight',
-      summary: item.summary || '',
-      tags: item.tags || '',
-      date: item.date || new Date().toISOString().split('T')[0],
-      is_public: Boolean(item.is_public),
-      is_posted: Boolean(item.is_posted),
-    };
-    const query = item.id
-      ? supabase.from('insights_signals').update(payload).eq('id', item.id)
-      : supabase.from('insights_signals').insert(payload);
-    const { error } = await query;
-    setStatusMessage(error ? error.message : 'Insight entry saved.');
-    if (!error) fetchAll();
-  };
-
-  const publicFlagship = flagshipProject.filter((x) => x.is_public && x.is_posted && x.content);
-  const publicGeo = geopoliticsTracker.filter((x) => x.is_public && x.is_posted);
-  const publicInsights = insightsSignals.filter((x) => x.is_public && x.is_posted);
-
-  const workspaceView = useMemo(() => {
-    if (activeSection === 'geopolitics') {
-      return (
-        <GeopoliticsTrackerPanel
-          data={geopoliticsTracker}
-          setData={setGeopoliticsTracker}
-          onSaveRow={saveTrackerRow}
-          onAddRow={addTrackerRow}
-          filterStatus={filterStatus}
-          setFilterStatus={setFilterStatus}
-        />
-      );
+  const handleApply = async (event) => {
+    event.preventDefault();
+    const payload = { ...applicationForm, status: 'pending', created_at: new Date().toISOString() };
+    if (supabase) {
+      const { error } = await supabase.from('applications').insert(payload);
+      if (error) return setStatusMessage(error.message);
     }
-    if (activeSection === 'insights') {
-      return (
-        <InsightsSignalsPanel
-          data={insightsSignals}
-          setData={setInsightsSignals}
-          onSaveItem={saveInsight}
-          onCreate={saveInsight}
-        />
-      );
-    }
-    return (
-      <FlagshipProjectPanel
-        data={flagshipProject}
-        setData={setFlagshipProject}
-        onSave={saveFlagshipSection}
-        currentUser={session?.user?.email || ''}
-      />
-    );
-  }, [activeSection, filterStatus, flagshipProject, geopoliticsTracker, insightsSignals, session]);
+    setApplications((prev) => [{ id: Date.now(), ...payload }, ...prev]);
+    setStatusMessage('Application submitted. Admin review pending.');
+    setApplicationForm({ full_name: '', email: '', role: '', institution: '', expertise: '', linkedin_url: '', statement: '', cv_url: '' });
+  };
 
-  if (workspaceOpen) {
-    return (
-      <div className="flex min-h-screen bg-slate-50">
-        <Sidebar
-          active={activeSection}
-          onChange={setActiveSection}
-          userEmail={session?.user?.email || 'Unknown'}
-          onLogout={async () => {
-            if (supabase) await supabase.auth.signOut();
-            setWorkspaceOpen(false);
-          }}
-        />
-        <main className="flex-1 p-8">
-          <div className="mb-5 rounded-md border border-slate-200 bg-white px-4 py-2 text-xs text-slate-600">{statusMessage}</div>
-          {workspaceView}
-        </main>
-      </div>
-    );
-  }
+  const approveApplication = (id, nextStatus) => setApplications((prev) => prev.map((x) => x.id === id ? { ...x, status: nextStatus } : x));
+
+  const publishInsight = (event) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const item = {
+      id: Date.now(),
+      title: String(form.get('title') || ''),
+      body: String(form.get('body') || ''),
+      author: session?.user?.email || 'Approved Member',
+      date: new Date().toISOString().slice(0, 10),
+      tags: { discipline: String(form.get('discipline')), region: String(form.get('region')), format: String(form.get('format')) },
+      comments: [],
+    };
+    if (!item.title || !item.body || !item.tags.discipline || !item.tags.region || !item.tags.format) {
+      setStatusMessage('All insight fields and tags are required.');
+      return;
+    }
+    setInsights((prev) => [item, ...prev]);
+    event.currentTarget.reset();
+  };
+
+  const toggleSaved = (id) => setSavedInsightIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  const toggleFollowTag = (tag) => setFollowedTags((prev) => prev.includes(tag) ? prev.filter((x) => x !== tag) : [...prev, tag]);
+
+  const addComment = (insightId) => {
+    const text = (commentDrafts[insightId] || '').trim();
+    if (!text) return;
+    setInsights((prev) => prev.map((item) => item.id !== insightId ? item : {
+      ...item,
+      comments: [...item.comments, { id: Date.now(), author: session?.user?.email || 'Approved Member', text, date: new Date().toISOString().slice(0, 10) }],
+    }));
+    setCommentDrafts((prev) => ({ ...prev, [insightId]: '' }));
+  };
 
   return (
     <>
       <nav>
-        <a href="#hero" className="nav-logo"><span className="nav-logo-name">ESTRA</span><span className="nav-logo-sub">Evidence · Synthesis · Translation · Real-World Action</span></a>
+        <a href="#hero" className="nav-logo"><span className="nav-logo-name">ESTRA</span><span className="nav-logo-sub">Evidence Synthesis Translation Real-World Action</span></a>
         <div className="nav-links">
-          <a href="#why-now">Why Now</a><a href="#ecosystem">Ecosystem</a><a href="#why-estra">Why ESTRA</a><a href="#team">Team</a>
+          <a href="#why-now">Structural Context</a><a href="#ecosystem">System Diagram</a><a href="#insights">Insights</a><a href="#team">Team</a>
         </div>
-        <button className="nav-cta" onClick={() => { setAuthOpen(true); setAuthMode(session ? 'login' : 'signup'); }}>Apply to Participate</button>
+        <button className="nav-cta" onClick={() => setActiveSection('apply')}>Apply to Join</button>
       </nav>
 
       <section className="hero" id="hero">
         <div className="hero-inner">
-          <div className="hero-eyebrow">Annual Gathering <span>·</span> Healthy Longevity <span>·</span> Global Intelligence</div>
-          <h1 className="hero-title">ESTRA <em>Forum</em></h1>
-          <p className="hero-sub">Evidence · Synthesis · Translation · Real-World Action</p>
-          <p className="hero-desc">A yearly gathering bringing together researchers, clinicians, policymakers and innovators working on healthy longevity.</p>
-          <div className="hero-actions">
-            <button className="btn-solid" onClick={() => setAuthOpen(true)}>Apply to Participate</button>
-            <a href="#public-feed" className="btn-ghost">Explore Public Posts</a>
-          </div>
+          <h1 className="hero-title">ESTRA</h1>
+          <p className="hero-sub">Evidence. Synthesis. Translation. Real-World Action.</p>
+          <p className="hero-desc">Global Longevity Intelligence. Verified Science. Unified Experts. Policy in Motion.</p>
+          <div className="hero-actions"><button className="btn-solid" onClick={() => setActiveSection('apply')}>Apply to Join</button><button className="btn-ghost" onClick={() => setAuthOpen(true)}>{session ? 'Account' : 'Sign up / Login'}</button></div>
         </div>
       </section>
 
-      <section className="section" id="why-now"><div className="section-inner"><div className="why-intro"><div className="label">Structural Context</div><h2 className="section-title">Why Now</h2><p className="section-body">Three converging global trends make the work of ESTRA structurally necessary.</p></div></div></section>
-      <section className="section" id="ecosystem"><div className="section-inner"><div className="label">New Ecosystem Circle</div><h2 className="section-title">ESTRA connects everyone.</h2><p className="section-body">Longevity is no longer only a medical question. It is a systems challenge.</p></div></section>
-      <section className="section" id="why-estra"><div className="section-inner"><div className="label">Mission Logic</div><h2 className="section-title">Why ESTRA</h2><p className="section-body">Evidence synthesis, expert dialogue, and policy translation.</p></div></section>
-      <section className="section" id="team"><div className="section-inner"><div className="label">The People</div><h2 className="section-title">Team</h2><p className="section-body">Apply to participate, sign up, and collaborate in the live workspace.</p></div></section>
+      <WhyNowSection />
+      <EcosystemSection />
+      <WhyEstraSection />
 
-      <section className="section" id="public-feed">
+      <section className="section" id="insights">
         <div className="section-inner">
-          <div className="label">Public Research Output</div>
-          <h2 className="section-title">Published by ESTRA collaborators</h2>
-          <p className="section-body">Only entries marked Public + Willing to Post appear below.</p>
-
-          <div className="public-grid">
-            <div className="public-card">
-              <h3>Flagship Project</h3>
-              {publicFlagship.length ? publicFlagship.map((item) => <p key={item.section_name}><strong>{item.section_name}:</strong> {item.content}</p>) : <p>No public flagship sections yet.</p>}
-            </div>
-            <div className="public-card">
-              <h3>Geopolitics Tracker</h3>
-              {publicGeo.length ? publicGeo.slice(0, 6).map((row) => <p key={row.id}><strong>{row.country}</strong> — {row.policy} ({row.status})</p>) : <p>No public tracker entries yet.</p>}
-            </div>
-            <div className="public-card">
-              <h3>Insights & Signals</h3>
-              {publicInsights.length ? publicInsights.slice(0, 6).map((entry) => <p key={entry.id}><strong>{entry.title}</strong> — {entry.summary}</p>) : <p>No public insights yet.</p>}
-            </div>
+          <div className="label">Insights</div>
+          <h2 className="section-title">Structured Publishing</h2>
+          <div className="filters">
+            <select value={filter.discipline} onChange={(e) => setFilter((p) => ({ ...p, discipline: e.target.value }))}><option>All</option>{disciplineTags.map((x) => <option key={x}>{x}</option>)}</select>
+            <select value={filter.region} onChange={(e) => setFilter((p) => ({ ...p, region: e.target.value }))}><option>All</option>{regionTags.map((x) => <option key={x}>{x}</option>)}</select>
+            <select value={filter.format} onChange={(e) => setFilter((p) => ({ ...p, format: e.target.value }))}><option>All</option>{formatTags.map((x) => <option key={x}>{x}</option>)}</select>
           </div>
 
-          <div style={{ marginTop: '24px' }}>
-            {session ? (
-              <button className="btn-solid" onClick={() => setWorkspaceOpen(true)}>Enter Editable Workspace</button>
-            ) : (
-              <button className="btn-solid" onClick={() => setAuthOpen(true)}>Sign up / Login to Edit</button>
-            )}
-          </div>
+          <div className="tag-row">{[...disciplineTags, ...regionTags, ...formatTags].map((tag) => <button key={tag} className={`eco-tag ${followedTags.includes(tag) ? 'active-tag' : ''}`} onClick={() => toggleFollowTag(tag)}>Follow {tag}</button>)}</div>
+
+          {isApprovedMember && (
+            <form className="publish-form" onSubmit={publishInsight}>
+              <h3>Publish Insight (Approved Members)</h3>
+              <input name="title" placeholder="Title" required />
+              <textarea name="body" placeholder="Body" required rows={5} />
+              <div className="filters"><select name="discipline" required><option value="">Discipline</option>{disciplineTags.map((x) => <option key={x}>{x}</option>)}</select><select name="region" required><option value="">Region</option>{regionTags.map((x) => <option key={x}>{x}</option>)}</select><select name="format" required><option value="">Format</option>{formatTags.map((x) => <option key={x}>{x}</option>)}</select></div>
+              <button className="btn-solid" type="submit">Publish Insight</button>
+            </form>
+          )}
+
+          {filteredInsights.map((item) => (
+            <article key={item.id} className="public-card insight-card">
+              <div className="tag-meta">{item.tags.discipline} · {item.tags.region} · {item.tags.format}</div>
+              <h3>{item.title}</h3>
+              <div className="tag-meta">{item.author} · {item.date}</div>
+              <p>{item.body}</p>
+              <div className="insight-actions">
+                <button className="btn-ghost" onClick={() => toggleSaved(item.id)}>{savedInsightIds.includes(item.id) ? 'Saved' : 'Save'}</button>
+                {!isApprovedMember ? <span>{item.comments.length} members are discussing this</span> : <span>{item.comments.length} comments</span>}
+              </div>
+              {isApprovedMember && (
+                <div className="comment-thread">
+                  {item.comments.map((c) => <p key={c.id}><strong>{c.author}</strong>: {c.text}</p>)}
+                  <textarea rows={2} value={commentDrafts[item.id] || ''} onChange={(e) => setCommentDrafts((prev) => ({ ...prev, [item.id]: e.target.value }))} placeholder="Add comment" />
+                  <button className="btn-solid" onClick={() => addComment(item.id)}>Post Comment</button>
+                </div>
+              )}
+            </article>
+          ))}
         </div>
       </section>
 
-      <footer>
-        <div className="footer-logo">ESTRA</div>
-        <div className="footer-copy">Evidence · Synthesis · Translation · Real-World Action</div>
-      </footer>
+      <TeamSection />
 
-      {authOpen && (
-        <div className="auth-overlay" onClick={() => setAuthOpen(false)}>
-          <form className="auth-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAuth}>
-            <h3>{authMode === 'signup' ? 'Create your researcher account' : 'Login to ESTRA'}</h3>
-            <p>{hasSupabaseConfig ? 'Use your credentials to access the editable collaborative modules.' : 'Configure Supabase first to enable authentication.'}</p>
-            <input type="email" placeholder="Email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} />
-            <input type="password" placeholder="Password" required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} />
-            <button type="submit" disabled={!hasSupabaseConfig}>{authMode === 'signup' ? 'Sign Up' : 'Login'}</button>
-            <button type="button" className="link-btn" onClick={() => setAuthMode((prev) => (prev === 'signup' ? 'login' : 'signup'))}>
-              {authMode === 'signup' ? 'Already have an account? Login' : 'Need an account? Sign up'}
-            </button>
-            {session && <button type="button" className="link-btn" onClick={() => { setAuthOpen(false); setWorkspaceOpen(true); }}>Already logged in? Enter workspace</button>}
-            <small>{statusMessage}</small>
+      <section className="section" id="apply" style={{ display: activeSection === 'apply' ? 'block' : 'none' }}>
+        <div className="section-inner"><h2 className="section-title">Apply to Join</h2>
+          <form className="publish-form" onSubmit={handleApply}>
+            <input placeholder="Full Name" value={applicationForm.full_name} onChange={(e) => setApplicationForm((p) => ({ ...p, full_name: e.target.value }))} required />
+            <input placeholder="Email" type="email" value={applicationForm.email} onChange={(e) => setApplicationForm((p) => ({ ...p, email: e.target.value }))} required />
+            <input placeholder="Role" value={applicationForm.role} onChange={(e) => setApplicationForm((p) => ({ ...p, role: e.target.value }))} required />
+            <input placeholder="Institution" value={applicationForm.institution} onChange={(e) => setApplicationForm((p) => ({ ...p, institution: e.target.value }))} required />
+            <input placeholder="Area of Expertise" value={applicationForm.expertise} onChange={(e) => setApplicationForm((p) => ({ ...p, expertise: e.target.value }))} required />
+            <input placeholder="LinkedIn URL" value={applicationForm.linkedin_url} onChange={(e) => setApplicationForm((p) => ({ ...p, linkedin_url: e.target.value }))} required />
+            <textarea rows={3} placeholder="Statement of Interest" value={applicationForm.statement} onChange={(e) => setApplicationForm((p) => ({ ...p, statement: e.target.value }))} required />
+            <input placeholder="Optional CV upload URL" value={applicationForm.cv_url} onChange={(e) => setApplicationForm((p) => ({ ...p, cv_url: e.target.value }))} />
+            <button className="btn-solid" type="submit">Submit Application</button>
           </form>
         </div>
+      </section>
+
+      {isAdmin && (
+        <section className="section"><div className="section-inner"><div className="label">Admin Dashboard</div><h2 className="section-title">Moderation & Approval</h2>
+          {applications.map((app) => <div key={app.id} className="advisor-card"><div><strong>{app.full_name}</strong> ({app.email}) — {app.status}</div><div style={{ marginLeft: 'auto' }}><button className="btn-solid" onClick={() => approveApplication(app.id, 'approved')}>Approve</button><button className="btn-ghost" onClick={() => approveApplication(app.id, 'rejected')}>Reject</button></div></div>)}
+        </div></section>
       )}
+
+      <footer><div className="footer-logo">ESTRA</div><div className="footer-copy">{statusMessage}</div><button className="btn-ghost" onClick={() => setAuthOpen(true)}>{session ? 'Switch account' : 'Login'}</button></footer>
+
+      {authOpen && <div className="auth-overlay" onClick={() => setAuthOpen(false)}><form className="auth-modal" onClick={(e) => e.stopPropagation()} onSubmit={handleAuth}><h3>{authMode === 'signup' ? 'Create account' : 'Login'}</h3><input type="email" placeholder="Email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required /><input type="password" placeholder="Password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required /><button type="submit">{authMode === 'signup' ? 'Sign Up' : 'Login'}</button><button type="button" className="link-btn" onClick={() => setAuthMode((p) => p === 'signup' ? 'login' : 'signup')}>{authMode === 'signup' ? 'Already have an account? Login' : 'Need an account? Sign up'}</button>{pendingConfirmationEmail && <button type="button" className="link-btn" onClick={async () => {
+        if (!supabase) return;
+        const { error } = await supabase.auth.resend({ type: 'signup', email: pendingConfirmationEmail, options: { emailRedirectTo: window.location.origin } });
+        setStatusMessage(error ? error.message : `Confirmation email re-sent to ${pendingConfirmationEmail}.`);
+      }}>Resend confirmation email</button>}<small>{statusMessage}</small></form></div>}
     </>
   );
 }
