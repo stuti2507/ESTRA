@@ -1,5 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import { hasSupabaseConfig, supabase } from './supabaseClient';
+import WhyNowSection from './components/sections/WhyNowSection';
+import EcosystemSection from './components/sections/EcosystemSection';
+import WhyEstraSection from './components/sections/WhyEstraSection';
+import TeamSection from './components/sections/TeamSection';
+
+const disciplineTags = ['Economics', 'Healthcare', 'Policy', 'Biology', 'Psychology', 'Anthropology', 'Nutrition', 'Geopolitics', 'Technology', 'Environment'];
+const regionTags = ['Europe', 'Asia', 'Americas', 'Global'];
+const formatTags = ['Brief', 'Data Note', 'Commentary', 'Research Summary'];
+
+const starterInsights = [
+  {
+    id: 1,
+    title: 'Longevity Financing Models for Ageing Economies',
+    body: 'Comparative policy scan across OECD systems shows prevention-first financing produces stronger labor participation and lower late-life acute care costs.',
+    author: 'ESTRA Editorial',
+    date: '2026-04-21',
+    tags: { discipline: 'Economics', region: 'Global', format: 'Research Summary' },
+    comments: [{ id: 1, author: 'Member A', text: 'Useful framing for fiscal ministries.', date: '2026-04-22' }],
+  },
+  {
+    id: 2,
+    title: 'Primary-Care Prevention Signals in Central Europe',
+    body: 'Pilot regions integrating digital risk triage with GP networks report earlier interventions and measurable adherence gains.',
+    author: 'ESTRA Member',
+    date: '2026-04-25',
+    tags: { discipline: 'Healthcare', region: 'Europe', format: 'Data Note' },
+    comments: [],
+  },
+];
 
 const disciplineTags = ['Economics', 'Healthcare', 'Policy', 'Biology', 'Psychology', 'Anthropology', 'Nutrition', 'Geopolitics', 'Technology', 'Environment'];
 const regionTags = ['Europe', 'Asia', 'Americas', 'Global'];
