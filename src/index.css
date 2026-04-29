@@ -173,3 +173,14 @@ footer { background: var(--ink); padding: 3rem; display: flex; align-items: cent
   .nav-links { display: none; }
   .section { padding: 5rem 1.5rem; }
 }
+
+.filters { display: flex; gap: 10px; flex-wrap: wrap; margin: 1rem 0; }
+.filters select, .publish-form input, .publish-form textarea { padding: 0.65rem 0.75rem; border: 1px solid #c3d0d8; font-size: 13px; background: white; }
+.tag-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1rem; }
+.active-tag { background: var(--accent-dark) !important; color: white !important; }
+.publish-form { display: grid; gap: 10px; background: white; padding: 1rem; border: 1px solid var(--cream-dark); margin-bottom: 1.2rem; }
+.insight-card { margin-bottom: 1rem; }
+.tag-meta { font-size: 11px; color: var(--muted); margin-bottom: 0.4rem; letter-spacing: 0.04em; }
+.insight-actions { display: flex; gap: 10px; align-items: center; margin: 0.8rem 0; }
+.comment-thread { border-top: 1px solid var(--cream-dark); padding-top: 0.8rem; display: grid; gap: 8px; }
+.comment-thread p { margin: 0; }
