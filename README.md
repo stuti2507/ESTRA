@@ -1,20 +1,11 @@
-# ESTRA Collaborative Research Platform
+# ESTRA — Evidence Synthesis Translation Real-World Action
 
-A minimal editorial-style multi-user research workspace with a public-facing ESTRA landing experience.
+Production-ready SaaS foundation using **React (Vite) + Tailwind + Supabase**.
 
-## What changed
-
-- Public site keeps the ESTRA editorial theme and sections.
-- `Apply to Participate` now opens **sign up / login** (Supabase email + password).
-- After login, users can enter the editable collaborative workspace.
-- Every editable record now includes:
-  - `is_public` (Public / Private)
-  - `is_posted` (willing to publish)
-- Public visitors can see only entries that are `is_public = true` and `is_posted = true`.
-
-## 1) Configure environment
+## Setup
 
 ```bash
+npm install
 cp .env.example .env
 ```
 
@@ -23,78 +14,80 @@ Set:
 - `VITE_SUPABASE_URL`
 - `VITE_SUPABASE_ANON_KEY`
 
-## 2) Run SQL schema (Supabase SQL Editor)
-
-```sql
-create table if not exists flagship_project (
-  id bigint generated always as identity primary key,
-  section_name text not null unique,
-  content text default '',
-  last_updated timestamptz default now(),
-  updated_by text default '',
-  is_public boolean default false,
-  is_posted boolean default false
-);
-
-create table if not exists geopolitics_tracker (
-  id bigint generated always as identity primary key,
-  country text default '',
-  policy text default '',
-  status text default 'Planned' check (status in ('Planned', 'Active', 'Scaling')),
-  impact text default '',
-  source text default '',
-  notes text default '',
-  last_updated timestamptz default now(),
-  is_public boolean default false,
-  is_posted boolean default false
-);
-
-create table if not exists insights_signals (
-  id bigint generated always as identity primary key,
-  title text not null,
-  author text default '',
-  type text default 'Insight' check (type in ('Insight', 'Misinformation Response')),
-  summary text default '',
-  tags text default '',
-  date date default current_date,
-  is_public boolean default false,
-  is_posted boolean default false
-);
-```
-
-If tables already exist, run:
-
-```sql
-alter table flagship_project add column if not exists is_public boolean default false;
-alter table flagship_project add column if not exists is_posted boolean default false;
-alter table geopolitics_tracker add column if not exists is_public boolean default false;
-alter table geopolitics_tracker add column if not exists is_posted boolean default false;
-alter table insights_signals add column if not exists is_public boolean default false;
-alter table insights_signals add column if not exists is_posted boolean default false;
-```
-
-## 3) Authentication setup
-
-In Supabase:
-
-- Authentication → Providers → **Email** enabled.
-- For easiest local testing, disable email confirmation (or confirm accounts manually).
-
-## 4) Realtime + access
-
-```sql
-alter publication supabase_realtime add table flagship_project;
-alter publication supabase_realtime add table geopolitics_tracker;
-alter publication supabase_realtime add table insights_signals;
-```
-
-For quick collaboration testing, allow table reads/writes with your RLS policies (or disable RLS during development).
-
-## 5) Start
+## Run
 
 ```bash
-npm install
 npm run dev
+npm run build
 ```
 
-Open in two browsers to verify realtime collaboration and public-post visibility behavior.
+## Supabase SQL schema
+
+```sql
+create table if not exists profiles (
+  id uuid primary key references auth.users(id) on delete cascade,
+  full_name text,
+  institution text,
+  linkedin_url text,
+  expertise_tags text[] default '{}',
+  role text not null default 'public' check (role in ('public','member','admin')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists applications (
+  id bigint generated always as identity primary key,
+  full_name text not null,
+  email text not null,
+  role text,
+  institution text,
+  area_of_expertise text,
+  linkedin_url text,
+  statement_of_interest text,
+  cv_url text,
+  status text not null default 'pending' check (status in ('pending','approved','rejected')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists insights (
+  id bigint generated always as identity primary key,
+  author_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  body text not null,
+  discipline text not null,
+  region text not null,
+  format text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists comments (
+  id bigint generated always as identity primary key,
+  insight_id bigint not null references insights(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists bookmarks (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  insight_id bigint not null references insights(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  primary key (user_id, insight_id)
+);
+
+create table if not exists tag_follows (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  tag_key text not null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, tag_key)
+);
+```
+
+## RLS baseline
+
+Enable RLS for all tables and create policies:
+- Public read on `insights`.
+- Member insert/read on `comments`, `bookmarks`, `tag_follows`.
+- Admin full access on `applications` and moderation paths.
+- Profiles self-read/write; admin write role.
+
+This repo provides a production foundation with role-based UX and Supabase integration hooks.
