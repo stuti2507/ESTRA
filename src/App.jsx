@@ -1,170 +1,148 @@
-const whyNowCards = [
-  {
-    title: 'Structural Context',
-    body: 'By 2050, people aged 60+ will exceed 2.1 billion globally.',
-    source: 'WHO, 2024',
-  },
-  {
-    title: 'Economic Consequence',
-    body: 'Unhealthy ageing costs the world $2 trillion annually.',
-    source: 'World Bank, 2024',
-  },
-  {
-    title: 'Disease Burden',
-    body: 'Non-communicable diseases cause 74% of global deaths.',
-    source: 'WHO Global Health Estimates, 2020',
-  },
-];
+import { useEffect, useMemo, useState } from 'react';
+import { hasSupabaseConfig, supabase } from './supabaseClient';
 
-const whyEstraBullets = [
-  'Credentialed expertise and verified interpretation of evidence.',
-  'One unified layer linking science, economics, policy, and public outcomes.',
-  'Open knowledge principles with transparent synthesis workflows.',
-  'Designed for institutions, experts, and decision-makers at scale.',
-];
+const DISCIPLINES = ['Economics', 'Healthcare', 'Policy', 'Biology', 'Psychology', 'Anthropology', 'Nutrition', 'Geopolitics', 'Technology', 'Environment'];
+const REGIONS = ['Europe', 'Asia', 'Americas', 'Global'];
+const FORMATS = ['Brief', 'Data Note', 'Commentary', 'Research Summary'];
 
-const team = [
-  { name: 'Georgia Bailey', role: 'Founder', focus: 'Platform vision, policy translation, and strategic partnerships.' },
-  { name: 'Avery Chen', role: 'Research Lead', focus: 'Evidence synthesis frameworks and discipline taxonomy quality.' },
-  { name: 'Samir Patel', role: 'Data & Intelligence', focus: 'Insight pipelines, signal quality controls, and analytics architecture.' },
+const navItems = [
+  ['home', 'Home'],
+  ['page2', 'Context'],
+  ['page3', 'System Moment'],
+  ['page4', 'System Diagram'],
+  ['insights', 'Insights'],
 ];
-
-const previewInsights = [
-  {
-    title: 'Prevention Economics in Rapidly Aging Regions',
-    summary: 'A cross-region synthesis of prevention-first models and fiscal impacts on long-term care systems.',
-    tags: ['Economics', 'Global', 'Research Summary'],
-  },
-  {
-    title: 'Regenerative Care Delivery Readiness',
-    summary: 'Framework for assessing clinic and hospital readiness as regenerative interventions scale.',
-    tags: ['Healthcare', 'Europe', 'Data Note'],
-  },
-  {
-    title: 'Policy Alignment for Longevity Governance',
-    summary: 'A brief on aligning insurers, governments, and public systems around verified science.',
-    tags: ['Policy', 'Americas', 'Commentary'],
-  },
-];
-
-const ecosystemNodes = ['Data', 'Experts', 'Insurers', 'Governments', 'Clinics & Hospitals', 'Public'];
 
 export default function App() {
-  return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
-      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <div>
-            <p className="font-serif text-2xl tracking-wide text-slate-700">ESTRA</p>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500">Global Longevity Intelligence</p>
-          </div>
-          <div className="flex gap-2">
-            <button className="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Explore Insights</button>
-            <button className="rounded-md bg-cyan-700 px-4 py-2 text-sm font-medium text-white">Apply to Join</button>
-          </div>
+  const [view, setView] = useState('home');
+  const [status, setStatus] = useState('Ready');
+  const [session, setSession] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [auth, setAuth] = useState({ open: false, mode: 'login', email: '', password: '' });
+
+  const [insights, setInsights] = useState([]);
+  const [commentsByInsight, setCommentsByInsight] = useState({});
+  const [bookmarks, setBookmarks] = useState([]);
+  const [follows, setFollows] = useState([]);
+  const [filter, setFilter] = useState({ discipline: 'All', region: 'All', format: 'All' });
+
+  const [application, setApplication] = useState({ full_name: '', email: '', role: '', institution: '', area_of_expertise: '', linkedin_url: '', statement_of_interest: '', cv_url: '' });
+  const [applications, setApplications] = useState([]);
+
+  const role = profile?.role || session?.user?.user_metadata?.role || 'public';
+  const isAdmin = role === 'admin';
+  const isMember = role === 'member' || isAdmin;
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => setSession(data.session));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (!supabase || !session?.user?.id) return;
+    supabase.from('profiles').select('*').eq('id', session.user.id).single().then(({ data }) => setProfile(data || null));
+    supabase.from('bookmarks').select('insight_id').eq('user_id', session.user.id).then(({ data }) => setBookmarks((data || []).map((x) => x.insight_id)));
+    supabase.from('tag_follows').select('tag_key').eq('user_id', session.user.id).then(({ data }) => setFollows((data || []).map((x) => x.tag_key)));
+  }, [session?.user?.id]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.from('insights').select('*, profiles(full_name, institution)').order('created_at', { ascending: false }).then(({ data, error }) => {
+      if (error) setStatus(error.message);
+      else setInsights(data || []);
+    });
+    supabase.from('comments').select('id, insight_id').then(({ data }) => {
+      const acc = {};
+      (data || []).forEach((c) => { acc[c.insight_id] = (acc[c.insight_id] || 0) + 1; });
+      setCommentsByInsight(acc);
+    });
+    if (isAdmin) supabase.from('applications').select('*').order('created_at', { ascending: false }).then(({ data }) => setApplications(data || []));
+  }, [isAdmin]);
+
+  const visibleInsights = useMemo(() => insights.filter((x) => (filter.discipline === 'All' || x.discipline === filter.discipline)
+    && (filter.region === 'All' || x.region === filter.region)
+    && (filter.format === 'All' || x.format === filter.format)), [insights, filter]);
+
+  const authSubmit = async (e) => {
+    e.preventDefault();
+    if (!supabase) return setStatus('Set SUPABASE env vars first.');
+    if (auth.mode === 'login') {
+      const { error } = await supabase.auth.signInWithPassword({ email: auth.email, password: auth.password });
+      if (error) return setStatus(error.message);
+      setAuth((p) => ({ ...p, open: false }));
+      return setStatus('Signed in.');
+    }
+    const { error } = await supabase.auth.signUp({ email: auth.email, password: auth.password, options: { emailRedirectTo: window.location.origin } });
+    if (error) return setStatus(error.message);
+    setStatus('Account created. Verify email if confirmation is enabled.');
+  };
+
+  const apply = async (e) => {
+    e.preventDefault();
+    if (!supabase) return;
+    const { error } = await supabase.from('applications').insert({ ...application, status: 'pending' });
+    if (error) return setStatus(error.message);
+    setStatus('Application submitted.');
+  };
+
+  const approve = async (id, approved) => {
+    if (!supabase) return;
+    const next = approved ? 'approved' : 'rejected';
+    await supabase.from('applications').update({ status: next }).eq('id', id);
+    setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status: next } : a)));
+  };
+
+  const publishInsight = async (e) => {
+    e.preventDefault();
+    if (!supabase || !isMember) return;
+    const f = new FormData(e.currentTarget);
+    const payload = Object.fromEntries(f.entries());
+    const { error } = await supabase.from('insights').insert({ ...payload, author_id: session.user.id });
+    if (error) return setStatus(error.message);
+    e.currentTarget.reset();
+    setStatus('Insight published.');
+  };
+
+  return <div className="min-h-screen bg-slate-50 text-slate-900">
+    <header className="sticky top-0 z-20 border-b bg-white/90 backdrop-blur">
+      <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3"><div><h1 className="font-serif text-xl tracking-wide">ESTRA</h1><p className="text-xs text-slate-500">Evidence Synthesis Translation Real-World Action</p></div></div>
+        <nav className="flex gap-2 flex-wrap">{navItems.map(([k, l]) => <button key={k} onClick={() => setView(k)} className="px-2 py-1 text-sm border rounded">{l}</button>)}</nav>
+        <div className="flex gap-2"><button className="px-3 py-2 rounded bg-slate-800 text-white text-sm" onClick={() => setAuth((p) => ({ ...p, open: true }))}>{session ? 'Account' : 'Apply to Participate'}</button></div>
+      </div>
+    </header>
+
+    <main className="mx-auto max-w-6xl px-4 py-8 space-y-8">
+      {view === 'home' && <section className="space-y-6">
+        <div className="rounded-2xl bg-gradient-to-br from-slate-700 to-slate-500 text-white p-10">
+          <h2 className="font-serif text-6xl">ESTRA</h2><p className="mt-2">Evidence. Synthesis. Translation. Real-World Action.</p><p>Global Longevity Intelligence. Verified Science. Unified Experts. Policy in Motion.</p>
         </div>
-      </header>
+        <article className="grid md:grid-cols-2 gap-4"><div className="border rounded-xl p-6"><h3 className="font-serif text-2xl">The New Ecosystem</h3><p className="mt-2">The field of healthy longevity is disconnected. ESTRA connects everyone.</p></div><div className="border rounded-xl p-6"><h3 className="font-serif text-2xl">ESTRA = Longevity Operating System</h3><ul className="list-disc ml-5 mt-2"><li>Public Knowledge Bank</li><li>Expert Network & Evidence Bank</li><li>Intelligence Engine</li><li>ESTRA Think Tank</li></ul></div></article>
+      </section>}
 
-      <main>
-        <section className="bg-gradient-to-br from-slate-500 to-slate-700 text-white">
-          <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-24 text-center">
-            <p className="font-serif text-6xl tracking-[0.1em]">ESTRA</p>
-            <p className="mt-8 max-w-4xl text-4xl leading-tight text-slate-100">Evidence. Synthesis. Translation. Real-World Action.</p>
-            <p className="mt-6 text-3xl text-slate-100">Global Longevity Intelligence.</p>
-            <p className="mt-4 text-4xl leading-tight text-slate-50">Verified Science. Unified Experts. Policy in Motion.</p>
-            <div className="mt-10 flex flex-wrap justify-center gap-3">
-              <button className="rounded-md bg-white px-6 py-3 font-medium text-slate-700">Explore Insights</button>
-              <button className="rounded-md border border-white/60 px-6 py-3 font-medium text-white">Apply to Join</button>
-            </div>
-          </div>
-        </section>
+      {view === 'page2' && <section className="grid md:grid-cols-3 gap-4">{[['01 Structural Context','By 2050, people aged 60+ will exceed 2.1 billion globally.','WHO, 2024'],['02 Economic Consequence','Unhealthy ageing costs the world $2 trillion annually.','World Bank, 2024'],['03 The Disease Burden','Non-communicable diseases cause 74% of global deaths.','WHO Global Health Estimates, 2020']].map(([a,b,c]) => <div className="border rounded-xl p-5" key={a}><h3 className="font-serif text-xl">{a}</h3><p className="mt-3">{b}</p><p className="text-xs mt-4 text-slate-500">Source: {c}</p></div>)}</section>}
 
-        <section className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="font-serif text-4xl text-slate-800">Why Now</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {whyNowCards.map((card) => (
-              <article key={card.title} className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h3 className="font-serif text-2xl text-slate-800">{card.title}</h3>
-                <p className="mt-3 text-slate-600">{card.body}</p>
-                <p className="mt-3 text-xs uppercase tracking-[0.12em] text-cyan-700">{card.source}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+      {view === 'page3' && <section className="border rounded-xl p-8"><h2 className="font-serif text-4xl">A System Moment and The Missing Layer</h2><blockquote className="mt-5 italic text-lg">“Gagarin’s orbit in 1961 didn’t just make history. It triggered the largest coordinated scientific investment in human history. Longevity science is at the same inflection point. The geopolitical stakes are identical. The response is not.”</blockquote><p className="mt-5 text-sm">Georgia Bailey — Founder, ESTRA</p></section>}
 
-        <section className="bg-slate-800 text-white">
-          <div className="mx-auto max-w-4xl px-4 py-16 text-center">
-            <h2 className="font-serif text-4xl">A System Moment & The Missing Layer</h2>
-            <blockquote className="mt-6 text-2xl italic leading-relaxed text-slate-100">
-              “Gagarin’s orbit in 1961 didn’t just make history. It triggered the largest coordinated scientific
-              investment in human history. Longevity science is at the same inflection point. The geopolitical stakes
-              are identical. The response is not.”
-            </blockquote>
-            <p className="mt-6 text-sm uppercase tracking-[0.18em] text-cyan-200">Georgia Bailey · Founder, ESTRA</p>
-          </div>
-        </section>
+      {view === 'page4' && <section className="border rounded-xl p-8 text-center"><h2 className="font-serif text-3xl">ESTRA System Diagram</h2><div className="mt-6 grid md:grid-cols-3 gap-3">{['Data','Experts','Insurers','Governments','Clinics & Hospitals','Public'].map((x) => <div className="border rounded p-3" key={x}>{x} → ESTRA</div>)}</div></section>}
 
-        <section className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="font-serif text-4xl text-slate-800">Ecosystem Diagram</h2>
-          <div className="mt-8 rounded-2xl border border-slate-200 bg-white p-8">
-            <div className="mx-auto grid max-w-4xl gap-6 md:grid-cols-3">
-              {ecosystemNodes.map((node) => (
-                <div key={node} className="flex items-center justify-center gap-3 text-sm text-slate-700">
-                  <span className="h-px w-10 bg-cyan-400" aria-hidden="true" />
-                  <span className="rounded-full border border-cyan-300 px-3 py-1">{node}</span>
-                  <span className="h-px w-10 bg-cyan-400" aria-hidden="true" />
-                </div>
-              ))}
-            </div>
-            <div className="mx-auto mt-8 flex h-36 w-36 items-center justify-center rounded-full border border-cyan-500 bg-cyan-50 font-serif text-3xl text-cyan-700">
-              ESTRA
-            </div>
-          </div>
-        </section>
+      {view === 'insights' && <section className="space-y-4"><div className="flex flex-wrap gap-2">{[['discipline', DISCIPLINES], ['region', REGIONS], ['format', FORMATS]].map(([key, arr]) => <select key={key} className="border rounded px-2 py-1" onChange={(e) => setFilter((p) => ({ ...p, [key]: e.target.value }))}><option>All</option>{arr.map((x) => <option key={x}>{x}</option>)}</select>)}</div>
+      {isMember && <form onSubmit={publishInsight} className="grid gap-2 border rounded-xl p-4 bg-white"><input name="title" placeholder="Title" className="border p-2" required /><textarea name="body" placeholder="Body" className="border p-2" required /><div className="grid md:grid-cols-3 gap-2"><select name="discipline" className="border p-2">{DISCIPLINES.map((x)=><option key={x}>{x}</option>)}</select><select name="region" className="border p-2">{REGIONS.map((x)=><option key={x}>{x}</option>)}</select><select name="format" className="border p-2">{FORMATS.map((x)=><option key={x}>{x}</option>)}</select></div><button className="bg-slate-800 text-white rounded px-3 py-2">Publish Insight</button></form>}
+      {visibleInsights.map((i) => <article key={i.id} className="border rounded-xl p-4 bg-white"><p className="text-xs text-slate-500">{i.discipline} • {i.region} • {i.format}</p><h3 className="font-serif text-2xl">{i.title}</h3><p className="mt-2">{i.body}</p><p className="text-sm text-slate-500 mt-2">{new Date(i.created_at).toLocaleString()} · {commentsByInsight[i.id] || 0} members are discussing this</p></article>)}
+      </section>}
 
-        <section className="bg-slate-100">
-          <div className="mx-auto max-w-6xl px-4 py-16">
-            <h2 className="font-serif text-4xl text-slate-800">Why ESTRA</h2>
-            <ul className="mt-6 grid gap-3 md:grid-cols-2">
-              {whyEstraBullets.map((item) => (
-                <li key={item} className="rounded-lg border border-slate-200 bg-white p-4 text-slate-700">• {item}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
+      <section className="border rounded-xl p-6 bg-white">
+        <h3 className="font-serif text-2xl">Application Form</h3>
+        <form onSubmit={apply} className="grid md:grid-cols-2 gap-2 mt-3">{Object.keys(application).map((k) => <input key={k} value={application[k]} onChange={(e) => setApplication((p) => ({ ...p, [k]: e.target.value }))} placeholder={k.replaceAll('_', ' ')} className="border p-2" />)}<button className="md:col-span-2 bg-slate-700 text-white rounded px-3 py-2">Submit Application</button></form>
+      </section>
 
-        <section className="mx-auto max-w-6xl px-4 py-16">
-          <h2 className="font-serif text-4xl text-slate-800">Team</h2>
-          <div className="mt-6 grid gap-4 md:grid-cols-3">
-            {team.map((person) => (
-              <article key={person.name} className="rounded-xl border border-slate-200 bg-white p-6">
-                <p className="text-xs uppercase tracking-[0.16em] text-cyan-700">{person.role}</p>
-                <h3 className="mt-2 font-serif text-2xl">{person.name}</h3>
-                <p className="mt-3 text-slate-600">{person.focus}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+      {isAdmin && <section className="border rounded-xl p-6 bg-white"><h3 className="font-serif text-2xl">Admin Dashboard</h3>{applications.map((a)=><div className="border rounded p-2 mt-2" key={a.id}><p>{a.full_name} — {a.email} — {a.status}</p><div className="flex gap-2"><button onClick={()=>approve(a.id,true)} className="text-sm">Approve</button><button onClick={()=>approve(a.id,false)} className="text-sm">Reject</button></div></div>)}</section>}
 
-        <section className="bg-white">
-          <div className="mx-auto max-w-6xl px-4 py-16">
-            <h2 className="font-serif text-4xl text-slate-800">Insights Preview</h2>
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
-              {previewInsights.map((item) => (
-                <article key={item.title} className="rounded-xl border border-slate-200 p-6 shadow-sm">
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {item.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-cyan-50 px-2 py-1 text-xs font-medium text-cyan-700">{tag}</span>
-                    ))}
-                  </div>
-                  <h3 className="font-serif text-2xl text-slate-800">{item.title}</h3>
-                  <p className="mt-3 text-slate-600">{item.summary}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-      </main>
-    </div>
-  );
+      <p className="text-sm text-slate-600">{hasSupabaseConfig ? status : 'Demo mode: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'}</p>
+    </main>
+
+    {auth.open && <div className="fixed inset-0 bg-black/40 flex items-center justify-center"><form onSubmit={authSubmit} className="bg-white rounded-xl p-6 w-full max-w-md grid gap-2"><h3 className="font-serif text-3xl">{auth.mode === 'login' ? 'Login' : 'Sign up'}</h3><input type="email" className="border p-2" value={auth.email} onChange={(e)=>setAuth((p)=>({...p,email:e.target.value}))} required /><input type="password" className="border p-2" value={auth.password} onChange={(e)=>setAuth((p)=>({...p,password:e.target.value}))} required /><button className="bg-slate-800 text-white rounded p-2">Continue</button><button type="button" className="text-sm underline" onClick={()=>setAuth((p)=>({...p,mode:p.mode==='login'?'signup':'login'}))}>Switch to {auth.mode === 'login' ? 'sign up' : 'login'}</button><button type="button" onClick={()=>setAuth((p)=>({...p,open:false}))}>Close</button></form></div>}
+  </div>;
 }
